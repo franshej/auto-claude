@@ -38,8 +38,8 @@ Start coding immediately. Test everything in the slightest little detail.\
 ITERATION_PROMPT = """\
 Review the current state of this project, then do the following in one pass:
 
-1. Identify meaningful improvements and new features — consider UX, performance, \
-missing functionality, security, and code quality
+1. Identify meaningful improvements and new features — think outside the box, \
+considering UX, performance, missing functionality, security, and code quality
 2. Write a brief plan at the top of your response listing what you will add/fix
 3. Implement everything you planned
 4. Add comprehensive tests for all new code

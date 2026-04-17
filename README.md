@@ -1,25 +1,31 @@
 # auto-agent
 
-Give it an idea — it builds a complete project with Claude Code, then loops forever improving it.
+Give it an idea — it builds a complete project with Gemini or Claude, then loops forever improving it.
 
 ## How it works
 
 1. You describe a project idea
 2. A folder is created in `~/auto-claude/<idea-slug>-<timestamp>/`
-3. Claude Code builds the full project with tests
-4. On every subsequent iteration, Claude reviews what exists, plans new features and improvements, implements them, and re-runs all tests
+3. The AI agent (Gemini or Claude) builds the full project with tests
+4. On every subsequent iteration, the agent reviews what exists, plans new features and improvements, implements them, and re-runs all tests
 5. Loops until you stop it (`Ctrl+C`) or tokens run out
 
 ## Requirements
 
 - Python 3.10+
-- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated
+- [Gemini CLI](https://geminicli.com) installed and authenticated (default agent)
+- [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) installed and authenticated (optional)
 
 ## Usage
 
-**New project — pass idea as argument:**
+**New project (uses Gemini by default):**
 ```bash
 python3 auto_agent.py "I want to build a Rust online game like World of Warcraft in 2D"
+```
+
+**Use a specific agent (Claude):**
+```bash
+python3 auto_agent.py "Build a personal portfolio website" --agent claude
 ```
 
 **New project — interactive prompt:**
@@ -37,9 +43,10 @@ Lists all projects in `~/auto-claude/` sorted by most recently modified. Pick a 
 
 **Continue a specific project by path:**
 ```bash
-python3 auto_agent.py --continue ~/auto-claude/my-project-20260417-120000
+python3 auto_agent.py --continue --path ~/auto-claude/my-project-20260417-120000
 ```
 
 ## Output
 
 All projects are saved under `~/auto-claude/`. Each run creates its own timestamped directory so nothing is ever overwritten.
+Usage statistics (tokens/cost) are displayed by the Gemini/Claude CLI at the end of each iteration.

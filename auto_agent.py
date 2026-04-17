@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
-auto_agent.py — Give it an idea, it builds and iteratively improves a project using Claude Code.
+auto_agent.py — Give it an idea, it builds and iteratively improves a project using Gemini or Claude.
 
 Usage:
     python auto_agent.py "I want to build a website to calculate energy needed to travel to planets"
     python auto_agent.py          # prompts for idea interactively
     python auto_agent.py --continue           # pick an existing project to resume
     python auto_agent.py --continue <path>    # resume a specific project directory
+    python auto_agent.py --agent claude       # use Claude instead of Gemini
 """
 
 import re
 import sys
 import subprocess
+import argparse
 from pathlib import Path
 from datetime import datetime
 
@@ -28,6 +30,7 @@ Requirements:
 - Run all tests and make sure they pass before finishing
 - Include a README.md with setup instructions and usage examples
 - Structure the code cleanly — production-quality, not a prototype
+- Commit your changes with a descriptive message once everything is working and tested
 
 Start coding immediately. Test everything in the slightest little detail.\
 """
@@ -41,6 +44,7 @@ missing functionality, security, and code quality
 3. Implement everything you planned
 4. Add comprehensive tests for all new code
 5. Run the full test suite and ensure everything passes
+6. Commit your changes with a descriptive message
 
 Be ambitious. Add real, visible value each iteration.\
 """
@@ -65,6 +69,28 @@ def slugify(text: str) -> str:
     return text[:50]
 
 
+def generate_slug_with_llm(idea: str, agent: str) -> str | None:
+    """Ask the LLM to generate a short kebab-case slug for the idea."""
+    prompt = f"Generate a short, descriptive kebab-case folder name for a project based on this idea: '{idea}'. Return ONLY the folder name, nothing else."
+
+    if agent == "gemini":
+        cmd = ["gemini", "-p", prompt, "-y", "--output-format", "text"]
+    else:
+        cmd = ["claude", "-p", prompt, "--dangerously-skip-permissions"]
+
+    try:
+        # We use a short timeout and capture output
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        if result.returncode == 0:
+            slug = result.stdout.strip().split("\n")[-1].strip()  # Take last line in case of noise
+            slug = re.sub(r"[^\w\s-]", "", slug)
+            slug = re.sub(r"[\s_-]+", "-", slug).lower()
+            return slug if slug else None
+    except Exception:
+        pass
+    return None
+
+
 def run_claude(prompt: str, cwd: Path) -> int:
     """Run claude -p in cwd, streaming output to the terminal. Returns exit code."""
     cmd = ["claude", "-p", prompt, "--dangerously-skip-permissions"]
@@ -73,6 +99,17 @@ def run_claude(prompt: str, cwd: Path) -> int:
         return result.returncode
     except FileNotFoundError:
         log(ANSI_RED, "ERROR", "'claude' command not found. Install Claude Code CLI first.")
+        sys.exit(1)
+
+
+def run_gemini(prompt: str, cwd: Path) -> int:
+    """Run gemini -p in cwd, streaming output to the terminal. Returns exit code."""
+    cmd = ["gemini", "-p", prompt, "-y"]
+    try:
+        result = subprocess.run(cmd, cwd=cwd)
+        return result.returncode
+    except FileNotFoundError:
+        log(ANSI_RED, "ERROR", "'gemini' command not found. Install Gemini CLI first.")
         sys.exit(1)
 
 
@@ -106,29 +143,35 @@ def pick_existing_project() -> Path:
 
 
 def main() -> None:
-    args = sys.argv[1:]
-    continuing = False
-    project_dir: Path | None = None
+    parser = argparse.ArgumentParser(description="Auto-Agent: Build and improve projects with AI.")
+    parser.add_argument("idea", nargs="*", help="The project idea to build.")
+    parser.add_argument("--continue", dest="continue_project", action="store_true", help="Resume an existing project.")
+    parser.add_argument("--path", type=str, help="Specific path to a project to resume (used with --continue).")
+    parser.add_argument("--agent", choices=["gemini", "claude"], default="gemini", help="The AI agent to use (default: gemini).")
 
-    if args and args[0] == "--continue":
-        continuing = True
-        rest = args[1:]
-        if rest:
-            # Path provided directly
-            project_dir = Path(" ".join(rest)).expanduser().resolve()
+    args = parser.parse_args()
+
+    project_dir: Path | None = None
+    idea = " ".join(args.idea).strip()
+
+    if args.continue_project:
+        if args.path:
+            project_dir = Path(args.path).expanduser().resolve()
             if not project_dir.is_dir():
                 log(ANSI_RED, "ERROR", f"Directory not found: {project_dir}")
                 sys.exit(1)
+        elif idea and Path(idea).is_dir():
+            # Handle case where user might have done: python auto_agent.py --continue /path/to/project
+            project_dir = Path(idea).expanduser().resolve()
+            idea = ""
         else:
             project_dir = pick_existing_project()
 
         log(ANSI_CYAN, "RESUME", f"Continuing project: {project_dir}")
         log(ANSI_CYAN, "INFO", "Press Ctrl+C at any time to stop the loop.\n")
-
+        continuing = True
     else:
-        if args:
-            idea = " ".join(args).strip()
-        else:
+        if not idea:
             print(f"{ANSI_BOLD}Describe your project idea:{ANSI_RESET}")
             idea = input("> ").strip()
 
@@ -136,14 +179,22 @@ def main() -> None:
             print("No idea provided. Exiting.")
             sys.exit(1)
 
-        slug = slugify(idea)
+        log(ANSI_CYAN, "IDEA", idea)
+        log(ANSI_YELLOW, "INFO", "Generating descriptive project name...")
+        slug = generate_slug_with_llm(idea, args.agent)
+        if not slug:
+            slug = slugify(idea)
+
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         project_dir = BASE_DIR / f"{slug}-{timestamp}"
         project_dir.mkdir(parents=True, exist_ok=True)
 
+        # Initialize git so agents can commit
+        subprocess.run(["git", "init"], cwd=project_dir, capture_output=True)
+
         log(ANSI_CYAN, "PROJECT", f"Directory: {project_dir}")
-        log(ANSI_CYAN, "IDEA", idea)
         log(ANSI_CYAN, "INFO", "Press Ctrl+C at any time to stop the loop.\n")
+        continuing = False
 
     iteration = 0
     try:
@@ -151,17 +202,20 @@ def main() -> None:
             iteration += 1
 
             if iteration == 1 and not continuing:
-                log(ANSI_YELLOW, f"ITER {iteration}", "Building initial project...")
+                log(ANSI_YELLOW, f"ITER {iteration}", f"Building initial project using {args.agent}...")
                 prompt = INITIAL_PROMPT.format(idea=idea)
             else:
                 label = f"ITER {iteration}" if not continuing else f"RESUME ITER {iteration}"
-                log(ANSI_YELLOW, label, "Planning and implementing improvements...")
+                log(ANSI_YELLOW, label, f"Planning and implementing improvements using {args.agent}...")
                 prompt = ITERATION_PROMPT
 
-            exit_code = run_claude(prompt, project_dir)
+            if args.agent == "gemini":
+                exit_code = run_gemini(prompt, project_dir)
+            else:
+                exit_code = run_claude(prompt, project_dir)
 
             if exit_code != 0:
-                log(ANSI_RED, "STOPPED", f"Claude exited with code {exit_code} — likely out of tokens or an error.")
+                log(ANSI_RED, "STOPPED", f"{args.agent.capitalize()} exited with code {exit_code} — likely out of tokens or an error.")
                 break
 
             log(ANSI_GREEN, f"ITER {iteration}", "Complete.\n")

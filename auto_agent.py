@@ -26,7 +26,7 @@ You are an expert software developer. Build a complete, working project based on
 
 Requirements:
 - Implement a fully functional, polished version of this idea
-- Write comprehensive tests covering every function, edge case, and integration point
+- Write exhaustive tests covering every function, edge case, and integration point. TESTING IS SUPER IMPORTANT.
 - Run all tests and make sure they pass before finishing
 - Include a README.md with setup instructions and usage examples
 - Structure the code cleanly — production-quality, not a prototype
@@ -42,8 +42,8 @@ Review the current state of this project, then do the following in one pass:
 considering UX, performance, missing functionality, security, and code quality
 2. Write a brief plan at the top of your response listing what you will add/fix
 3. Implement everything you planned
-4. Add comprehensive tests for all new code
-5. Run the full test suite and ensure everything passes
+4. Add exhaustive tests for all new code and edge cases (TESTING IS SUPER IMPORTANT)
+5. Run the full test suite and ensure absolutely everything passes
 6. Commit your changes with a descriptive message
 
 Be ambitious. Add real, visible value each iteration.\

@@ -29,6 +29,7 @@ Requirements:
 - Write exhaustive tests covering every function, edge case, and integration point. TESTING IS SUPER IMPORTANT.
 - Run all tests and make sure they pass before finishing
 - Include a README.md with setup instructions and usage examples
+- Create a MEMORY.md file documenting the project's architecture, current state, and potential future improvements
 - Structure the code cleanly — production-quality, not a prototype
 - Commit your changes with a descriptive message once everything is working and tested
 
@@ -44,7 +45,9 @@ considering UX, performance, missing functionality, security, and code quality
 3. Implement everything you planned
 4. Add exhaustive tests for all new code and edge cases (TESTING IS SUPER IMPORTANT)
 5. Run the full test suite and ensure absolutely everything passes
-6. Commit your changes with a descriptive message
+6. Update the README.md to reflect the new features and current state of the project
+7. Update MEMORY.md to document recent changes, current architecture, and future ideas
+8. Commit your changes with a descriptive message
 
 Be ambitious. Add real, visible value each iteration.\
 """

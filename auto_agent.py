@@ -16,6 +16,7 @@ import subprocess
 import argparse
 from pathlib import Path
 from datetime import datetime
+from typing import Optional
 
 BASE_DIR = Path.home() / "auto-claude"
 
@@ -72,7 +73,7 @@ def slugify(text: str) -> str:
     return text[:50]
 
 
-def generate_slug_with_llm(idea: str, agent: str) -> str | None:
+def generate_slug_with_llm(idea: str, agent: str) -> Optional[str]:
     """Ask the LLM to generate a short kebab-case slug for the idea."""
     prompt = f"Generate a short, descriptive kebab-case folder name for a project based on this idea: '{idea}'. Return ONLY the folder name, nothing else."
 
@@ -154,7 +155,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    project_dir: Path | None = None
+    project_dir: Optional[Path] = None
     idea = " ".join(args.idea).strip()
 
     if args.continue_project:

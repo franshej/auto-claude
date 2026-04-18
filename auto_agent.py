@@ -7,16 +7,17 @@ Usage:
     python auto_agent.py          # prompts for idea interactively
     python auto_agent.py --continue           # pick an existing project to resume
     python auto_agent.py --continue <path>    # resume a specific project directory
-    python auto_agent.py --agent claude       # use Claude instead of Gemini
+    python auto_agent.py --agent gemini       # use Gemini instead of Claude
 """
 
 import re
 import sys
+import time
 import subprocess
 import argparse
 from pathlib import Path
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timedelta
+from typing import Optional, Tuple
 
 BASE_DIR = Path.home() / "auto-claude"
 
@@ -73,6 +74,74 @@ def slugify(text: str) -> str:
     return text[:50]
 
 
+def calculate_sleep_seconds(output: str) -> Optional[int]:
+    """
+    Parse reset time from output like: "You've hit your limit · resets 7pm (Europe/Stockholm)"
+    Returns seconds to sleep, or None if not found.
+    """
+    # Regex for "resets 7pm", "resets 7:30pm", "resets 19:00"
+    match = re.search(r"resets (\d{1,2}(?::\d{2})?(?:am|pm)?)\s*\(", output, re.IGNORECASE)
+    if not match:
+        return None
+
+    time_str = match.group(1).lower()
+    now = datetime.now()
+    
+    try:
+        if ":" in time_str:
+            if "am" in time_str or "pm" in time_str:
+                # 7:30pm
+                target_time = datetime.strptime(time_str, "%I:%M%p")
+            else:
+                # 19:00
+                target_time = datetime.strptime(time_str, "%H:%M")
+        else:
+            if "am" in time_str or "pm" in time_str:
+                # 7pm
+                target_time = datetime.strptime(time_str, "%I%p")
+            else:
+                # 19
+                target_time = datetime.strptime(time_str, "%H")
+        
+        # Replace year/month/day with today
+        target_time = target_time.replace(year=now.year, month=now.month, day=now.day)
+        
+        # If target time is in the past, it's likely tomorrow (e.g., it's 11pm and resets 7am)
+        if target_time < now:
+            target_time += timedelta(days=1)
+            
+        seconds = int((target_time - now).total_seconds())
+        return max(seconds, 0) + 60  # Add 60s buffer
+    except ValueError:
+        return None
+
+
+def run_command_streaming(cmd: list[str], cwd: Path) -> Tuple[int, str]:
+    """Run a command, streaming its output to terminal and capturing it."""
+    output_lines = []
+    try:
+        # We combine stderr and stdout
+        process = subprocess.Popen(
+            cmd,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True,
+        )
+
+        if process.stdout:
+            for line in process.stdout:
+                print(line, end="", flush=True)
+                output_lines.append(line)
+        
+        exit_code = process.wait()
+        return exit_code, "".join(output_lines)
+    except FileNotFoundError:
+        return -127, f"Command not found: {cmd[0]}"
+
+
 def generate_slug_with_llm(idea: str, agent: str) -> Optional[str]:
     """Ask the LLM to generate a short kebab-case slug for the idea."""
     prompt = f"Generate a short, descriptive kebab-case folder name for a project based on this idea: '{idea}'. Return ONLY the folder name, nothing else."
@@ -83,7 +152,7 @@ def generate_slug_with_llm(idea: str, agent: str) -> Optional[str]:
         cmd = ["claude", "-p", prompt, "--dangerously-skip-permissions"]
 
     try:
-        # We use a short timeout and capture output
+        # We use a short timeout and capture output silently
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if result.returncode == 0:
             slug = result.stdout.strip().split("\n")[-1].strip()  # Take last line in case of noise
@@ -93,28 +162,6 @@ def generate_slug_with_llm(idea: str, agent: str) -> Optional[str]:
     except Exception:
         pass
     return None
-
-
-def run_claude(prompt: str, cwd: Path) -> int:
-    """Run claude -p in cwd, streaming output to the terminal. Returns exit code."""
-    cmd = ["claude", "-p", prompt, "--dangerously-skip-permissions"]
-    try:
-        result = subprocess.run(cmd, cwd=cwd)
-        return result.returncode
-    except FileNotFoundError:
-        log(ANSI_RED, "ERROR", "'claude' command not found. Install Claude Code CLI first.")
-        sys.exit(1)
-
-
-def run_gemini(prompt: str, cwd: Path) -> int:
-    """Run gemini -p in cwd, streaming output to the terminal. Returns exit code."""
-    cmd = ["gemini", "-p", prompt, "-y"]
-    try:
-        result = subprocess.run(cmd, cwd=cwd)
-        return result.returncode
-    except FileNotFoundError:
-        log(ANSI_RED, "ERROR", "'gemini' command not found. Install Gemini CLI first.")
-        sys.exit(1)
 
 
 def pick_existing_project() -> Path:
@@ -151,7 +198,7 @@ def main() -> None:
     parser.add_argument("idea", nargs="*", help="The project idea to build.")
     parser.add_argument("--continue", dest="continue_project", action="store_true", help="Resume an existing project.")
     parser.add_argument("--path", type=str, help="Specific path to a project to resume (used with --continue).")
-    parser.add_argument("--agent", choices=["gemini", "claude"], default="gemini", help="The AI agent to use (default: gemini).")
+    parser.add_argument("--agent", choices=["gemini", "claude"], default="claude", help="The AI agent to use (default: claude).")
 
     args = parser.parse_args()
 
@@ -213,14 +260,31 @@ def main() -> None:
                 log(ANSI_YELLOW, label, f"Planning and implementing improvements using {args.agent}...")
                 prompt = ITERATION_PROMPT
 
-            if args.agent == "gemini":
-                exit_code = run_gemini(prompt, project_dir)
-            else:
-                exit_code = run_claude(prompt, project_dir)
+            while True:
+                if args.agent == "gemini":
+                    cmd = ["gemini", "-p", prompt, "-y"]
+                else:
+                    cmd = ["claude", "-p", prompt, "--dangerously-skip-permissions"]
+                
+                exit_code, output = run_command_streaming(cmd, project_dir)
 
-            if exit_code != 0:
-                log(ANSI_RED, "STOPPED", f"{args.agent.capitalize()} exited with code {exit_code} — likely out of tokens or an error.")
-                break
+                if exit_code != 0:
+                    if exit_code == -127:
+                        log(ANSI_RED, "ERROR", f"Agent command not found. Install {args.agent.capitalize()} first.")
+                        sys.exit(1)
+
+                    sleep_s = calculate_sleep_seconds(output)
+                    if sleep_s:
+                        wake_time = (datetime.now() + timedelta(seconds=sleep_s)).strftime("%H:%M:%S")
+                        log(ANSI_YELLOW, "WAIT", f"Hit limit. Sleeping {sleep_s}s until {wake_time}...")
+                        time.sleep(sleep_s)
+                        log(ANSI_CYAN, "RETRY", "Waking up. Retrying iteration...")
+                        continue
+                    else:
+                        log(ANSI_RED, "STOPPED", f"{args.agent.capitalize()} exited with code {exit_code} — likely an error or hard limit.")
+                        sys.exit(1)
+                
+                break # Success, move to next iteration
 
             log(ANSI_GREEN, f"ITER {iteration}", "Complete.\n")
 

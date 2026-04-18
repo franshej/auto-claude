@@ -41,17 +41,17 @@ Start coding immediately. Test everything in the slightest little detail.\
 ITERATION_PROMPT = """\
 Review the current state of this project, then do the following in one pass:
 
-1. Identify meaningful improvements and new features — think outside the box, \
+1. Identify ONE meaningful improvement or new feature — think outside the box, \
 considering UX, performance, missing functionality, security, and code quality
 2. Write a brief plan at the top of your response listing what you will add/fix
-3. Implement everything you planned
-4. Add exhaustive tests for all new code and edge cases (TESTING IS SUPER IMPORTANT)
+3. Implement exactly what you planned
+4. Add exhaustive tests for the new code and edge cases (TESTING IS SUPER IMPORTANT)
 5. Run the full test suite and ensure absolutely everything passes
-6. Update the README.md to reflect the new features and current state of the project
+6. Update the README.md to reflect the new feature and current state of the project
 7. Update MEMORY.md to document recent changes, current architecture, and future ideas
 8. Commit your changes with a descriptive message
 
-Be ambitious. Add real, visible value each iteration.\
+Be ambitious with that one feature. Add real, visible value each iteration.\
 """
 
 ANSI_CYAN = "\033[96m"

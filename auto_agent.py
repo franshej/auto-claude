@@ -39,10 +39,13 @@ Start coding immediately. Test everything in the slightest little detail.\
 """
 
 ITERATION_PROMPT = """\
-Review the current state of this project, then do the following in one pass:
+Review the current state of this project. Note that the project may have been previously interrupted; \
+check for uncommitted changes, existing files, and the contents of MEMORY.md to understand the current progress.
 
-1. Identify ONE meaningful improvement or new feature — think outside the box, \
-considering UX, performance, missing functionality, security, and code quality
+Then, do the following in one pass:
+
+1. Identify the next ONE meaningful improvement or new feature (or finish an interrupted task) — \
+think outside the box, considering UX, performance, missing functionality, security, and code quality
 2. Write a brief plan at the top of your response listing what you will add/fix
 3. Implement exactly what you planned
 4. Add exhaustive tests for the new code and edge cases (TESTING IS SUPER IMPORTANT)
@@ -218,7 +221,14 @@ def main() -> None:
         else:
             project_dir = pick_existing_project()
 
+        # Load original idea if possible
+        idea_file = project_dir / ".idea"
+        if idea_file.exists():
+            idea = idea_file.read_text().strip()
+
         log(ANSI_CYAN, "RESUME", f"Continuing project: {project_dir}")
+        if idea:
+            log(ANSI_CYAN, "IDEA", idea)
         log(ANSI_CYAN, "INFO", "Press Ctrl+C at any time to stop the loop.\n")
         continuing = True
     else:
@@ -242,6 +252,9 @@ def main() -> None:
 
         # Initialize git so agents can commit
         subprocess.run(["git", "init"], cwd=project_dir, capture_output=True)
+
+        # Save the idea for future resumes
+        (project_dir / ".idea").write_text(idea)
 
         log(ANSI_CYAN, "PROJECT", f"Directory: {project_dir}")
         log(ANSI_CYAN, "INFO", "Press Ctrl+C at any time to stop the loop.\n")

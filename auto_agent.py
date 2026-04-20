@@ -288,10 +288,21 @@ def main() -> None:
 
                     sleep_s = calculate_sleep_seconds(output)
                     if sleep_s:
-                        wake_time = (datetime.now() + timedelta(seconds=sleep_s)).strftime("%H:%M:%S")
-                        log(ANSI_YELLOW, "WAIT", f"Hit limit. Sleeping {sleep_s}s until {wake_time}...")
-                        time.sleep(sleep_s)
-                        log(ANSI_CYAN, "RETRY", "Waking up. Retrying iteration...")
+                        target_time = datetime.now() + timedelta(seconds=sleep_s)
+                        log(ANSI_YELLOW, "LIMIT", f"Hit rate limit. Reset scheduled for {target_time.strftime('%H:%M:%S')}.")
+                        
+                        while True:
+                            now = datetime.now()
+                            if now >= target_time:
+                                break
+                                
+                            remaining = int((target_time - now).total_seconds())
+                            wait_chunk = min(300, remaining)
+                            
+                            log(ANSI_YELLOW, "WAIT", f"Still waiting... {remaining // 60}m {remaining % 60}s remaining. Next check in {wait_chunk // 60}m {wait_chunk % 60}s.")
+                            time.sleep(wait_chunk)
+
+                        log(ANSI_CYAN, "RETRY", "Reset time reached. Retrying iteration...")
                         continue
                     else:
                         log(ANSI_RED, "STOPPED", f"{args.agent.capitalize()} exited with code {exit_code} — likely an error or hard limit.")

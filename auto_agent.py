@@ -44,8 +44,8 @@ check for uncommitted changes, existing files, and the contents of MEMORY.md to 
 
 Then, do the following in one pass:
 
-1. Identify the next ONE meaningful improvement or new feature (or finish an interrupted task) — \
-think outside the box, considering UX, performance, missing functionality, security, and code quality
+1. Identify ONE meaningful {type} improvement — think outside the box, \
+considering {focus}
 2. Write a brief plan at the top of your response listing what you will add/fix
 3. Implement exactly what you planned
 4. Add exhaustive tests for the new code and edge cases (TESTING IS SUPER IMPORTANT)
@@ -54,7 +54,7 @@ think outside the box, considering UX, performance, missing functionality, secur
 7. Update MEMORY.md to document recent changes, current architecture, and future ideas
 8. Commit your changes with a descriptive message
 
-Be ambitious with that one feature. Add real, visible value each iteration.\
+Be ambitious with that one improvement. Add real, visible value each iteration.\
 """
 
 ANSI_CYAN = "\033[96m"
@@ -280,8 +280,20 @@ def main() -> None:
                 prompt = INITIAL_PROMPT.format(idea=idea)
             else:
                 label = f"ITER {iteration}" if not continuing else f"RESUME ITER {iteration}"
-                log(ANSI_YELLOW, label, f"Planning and implementing improvements using {args.agent}...")
-                prompt = ITERATION_PROMPT
+                
+                # Alternate between Feature and Design
+                # We use (iteration + 1) if continuing to try and keep the rhythm, 
+                # or just iteration if new.
+                if iteration % 2 == 1:
+                    iter_type = "feature"
+                    iter_focus = "functionality, logic, performance, and security"
+                else:
+                    iter_type = "design/graphical"
+                    iter_focus = "UI, UX, aesthetics, and polish"
+                
+                log(ANSI_YELLOW, label, f"Planning and implementing {iter_type} improvements using {args.agent}...")
+                prompt = ITERATION_PROMPT.format(type=iter_type, focus=iter_focus)
+                
                 if iteration == 1 and continuing and resume_instruction:
                     prompt += f"\n\nAdditional instruction for this resume: \"{resume_instruction}\""
 

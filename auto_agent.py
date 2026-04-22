@@ -206,7 +206,8 @@ def main() -> None:
     args = parser.parse_args()
 
     project_dir: Optional[Path] = None
-    idea = " ".join(args.idea).strip()
+    input_text = " ".join(args.idea).strip()
+    resume_instruction = ""
 
     if args.continue_project:
         if args.path:
@@ -214,24 +215,33 @@ def main() -> None:
             if not project_dir.is_dir():
                 log(ANSI_RED, "ERROR", f"Directory not found: {project_dir}")
                 sys.exit(1)
-        elif idea and Path(idea).is_dir():
-            # Handle case where user might have done: python auto_agent.py --continue /path/to/project
-            project_dir = Path(idea).expanduser().resolve()
-            idea = ""
+            resume_instruction = input_text
+        elif input_text and Path(input_text).is_dir():
+            # Handle case where user might have done: python auto_agent.py --continue /path/to/project "new instruction"
+            # This is ambiguous, so we check if the first word is a path
+            parts = input_text.split(" ", 1)
+            project_dir = Path(parts[0]).expanduser().resolve()
+            if len(parts) > 1:
+                resume_instruction = parts[1]
         else:
             project_dir = pick_existing_project()
+            resume_instruction = input_text
 
         # Load original idea if possible
         idea_file = project_dir / ".idea"
+        idea = ""
         if idea_file.exists():
             idea = idea_file.read_text().strip()
 
         log(ANSI_CYAN, "RESUME", f"Continuing project: {project_dir}")
         if idea:
             log(ANSI_CYAN, "IDEA", idea)
+        if resume_instruction:
+            log(ANSI_CYAN, "INSTRUCTION", resume_instruction)
         log(ANSI_CYAN, "INFO", "Press Ctrl+C at any time to stop the loop.\n")
         continuing = True
     else:
+        idea = input_text
         if not idea:
             print(f"{ANSI_BOLD}Describe your project idea:{ANSI_RESET}")
             idea = input("> ").strip()
@@ -272,6 +282,8 @@ def main() -> None:
                 label = f"ITER {iteration}" if not continuing else f"RESUME ITER {iteration}"
                 log(ANSI_YELLOW, label, f"Planning and implementing improvements using {args.agent}...")
                 prompt = ITERATION_PROMPT
+                if iteration == 1 and continuing and resume_instruction:
+                    prompt += f"\n\nAdditional instruction for this resume: \"{resume_instruction}\""
 
             while True:
                 if args.agent == "gemini":

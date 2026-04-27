@@ -76,6 +76,25 @@ application, to ensure the fix works and prevents regressions (TESTING IS SUPER 
 Focus on making the existing codebase rock-solid and verifiable from end-to-end.\
 """
 
+DESIGN_PROMPT = """\
+Review the current state of this project. Your goal is to focus exclusively on UI/UX, \
+aesthetics, gameplay feel, and visual polish. Do NOT add new core features.
+
+Do the following in one pass:
+
+1. Identify ONE area for visual or experiential improvement — consider UI layout, \
+color schemes, animations, gameplay balance, or using more appropriate assets (e.g., correct tiles for characters)
+2. Write a brief plan at the top of your response listing the design improvement
+3. Implement the improvement
+4. Add or update tests to ensure the UI/UX remains functional and visually correct
+5. Run the full test suite and ensure absolutely everything passes
+6. Update the README.md if the visual changes affect usage instructions
+7. Update MEMORY.md to document the design changes and future aesthetic ideas
+8. Commit your changes with a descriptive message
+
+Focus on making the project look and feel professional, polished, and delightful.\
+"""
+
 ANSI_CYAN = "\033[96m"
 ANSI_GREEN = "\033[92m"
 ANSI_YELLOW = "\033[93m"
@@ -222,6 +241,7 @@ def main() -> None:
     parser.add_argument("--path", type=str, help="Specific path to a project to resume (used with --continue).")
     parser.add_argument("--agent", choices=["gemini", "claude"], default="claude", help="The AI agent to use (default: claude).")
     parser.add_argument("--fix", action="store_true", help="Run in fixing mode, focusing on bugs and tests.")
+    parser.add_argument("--design", action="store_true", help="Run in design mode, focusing on UI/UX and aesthetics.")
 
     args = parser.parse_args()
 
@@ -304,6 +324,9 @@ def main() -> None:
                 if args.fix:
                     log(ANSI_YELLOW, label, f"Fixing and hardening project using {args.agent}...")
                     prompt = FIXING_PROMPT
+                elif args.design:
+                    log(ANSI_YELLOW, label, f"Polishing design and UI using {args.agent}...")
+                    prompt = DESIGN_PROMPT
                 else:
                     # Alternate between Feature and Design
                     # We use (iteration + 1) if continuing to try and keep the rhythm, 

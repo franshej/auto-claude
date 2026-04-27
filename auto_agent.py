@@ -57,6 +57,24 @@ considering {focus}
 Be ambitious with that one improvement. Add real, visible value each iteration.\
 """
 
+FIXING_PROMPT = """\
+Review the current state of this project. Your goal is to focus exclusively on fixing bugs, \
+improving performance, and strengthening the test suite.
+
+Do the following in one pass:
+
+1. Identify ONE area that needs fixing or hardening — consider edge cases, potential bugs, \
+performance bottlenecks, or missing test coverage
+2. Write a brief plan at the top of your response listing the fix or improvement
+3. Implement the fix
+4. Add exhaustive tests to ensure the fix works and prevents regressions (TESTING IS SUPER IMPORTANT)
+5. Run the full test suite and ensure absolutely everything passes
+6. Update MEMORY.md to document the fix and any architectural changes
+7. Commit your changes with a descriptive message
+
+Focus on making the existing codebase rock-solid.\
+"""
+
 ANSI_CYAN = "\033[96m"
 ANSI_GREEN = "\033[92m"
 ANSI_YELLOW = "\033[93m"
@@ -202,6 +220,7 @@ def main() -> None:
     parser.add_argument("--continue", dest="continue_project", action="store_true", help="Resume an existing project.")
     parser.add_argument("--path", type=str, help="Specific path to a project to resume (used with --continue).")
     parser.add_argument("--agent", choices=["gemini", "claude"], default="claude", help="The AI agent to use (default: claude).")
+    parser.add_argument("--fix", action="store_true", help="Run in fixing mode, focusing on bugs and tests.")
 
     args = parser.parse_args()
 
@@ -281,18 +300,22 @@ def main() -> None:
             else:
                 label = f"ITER {iteration}" if not continuing else f"RESUME ITER {iteration}"
                 
-                # Alternate between Feature and Design
-                # We use (iteration + 1) if continuing to try and keep the rhythm, 
-                # or just iteration if new.
-                if iteration % 2 == 1:
-                    iter_type = "feature"
-                    iter_focus = "functionality, logic, performance, and security"
+                if args.fix:
+                    log(ANSI_YELLOW, label, f"Fixing and hardening project using {args.agent}...")
+                    prompt = FIXING_PROMPT
                 else:
-                    iter_type = "design/graphical"
-                    iter_focus = "UI, UX, aesthetics, and polish"
-                
-                log(ANSI_YELLOW, label, f"Planning and implementing {iter_type} improvements using {args.agent}...")
-                prompt = ITERATION_PROMPT.format(type=iter_type, focus=iter_focus)
+                    # Alternate between Feature and Design
+                    # We use (iteration + 1) if continuing to try and keep the rhythm, 
+                    # or just iteration if new.
+                    if iteration % 2 == 1:
+                        iter_type = "feature"
+                        iter_focus = "functionality, logic, performance, and security"
+                    else:
+                        iter_type = "design/graphical"
+                        iter_focus = "UI, UX, aesthetics, and polish"
+                    
+                    log(ANSI_YELLOW, label, f"Planning and implementing {iter_type} improvements using {args.agent}...")
+                    prompt = ITERATION_PROMPT.format(type=iter_type, focus=iter_focus)
                 
                 if iteration == 1 and continuing and resume_instruction:
                     prompt += f"\n\nAdditional instruction for this resume: \"{resume_instruction}\""

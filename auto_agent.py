@@ -59,7 +59,7 @@ Be ambitious with that one improvement. Add real, visible value each iteration.\
 
 FIXING_PROMPT = """\
 Review the current state of this project. Your goal is to focus exclusively on fixing bugs, \
-improving performance, and strengthening the test suite.
+improving performance, and strengthening the test suite with a focus on end-to-end reliability.
 
 Do the following in one pass:
 
@@ -67,12 +67,13 @@ Do the following in one pass:
 performance bottlenecks, or missing test coverage
 2. Write a brief plan at the top of your response listing the fix or improvement
 3. Implement the fix
-4. Add exhaustive tests to ensure the fix works and prevents regressions (TESTING IS SUPER IMPORTANT)
+4. Add exhaustive tests, including END-TO-END (E2E) tests that verify the actual usage of the \
+application, to ensure the fix works and prevents regressions (TESTING IS SUPER IMPORTANT)
 5. Run the full test suite and ensure absolutely everything passes
 6. Update MEMORY.md to document the fix and any architectural changes
 7. Commit your changes with a descriptive message
 
-Focus on making the existing codebase rock-solid.\
+Focus on making the existing codebase rock-solid and verifiable from end-to-end.\
 """
 
 ANSI_CYAN = "\033[96m"
